@@ -1,4 +1,6 @@
+from cgi import test
 from copy import deepcopy
+from copyreg import pickle
 import itertools
 import numpy as np
 import torch
@@ -7,6 +9,8 @@ import gym
 import time
 import spinup.algos.pytorch.gsac.core as core
 from spinup.utils.logx import EpochLogger
+import pickle
+import random
 
 
 class ReplayBuffer:
@@ -46,7 +50,7 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         steps_per_epoch=4000, epochs=100, replay_size=int(1e6), gamma=0.99, 
         polyak=0.995, lr=1e-3, alpha=0.2, batch_size=100, start_steps=10000, 
         update_after=1000, update_every=50, num_test_episodes=10, max_ep_len=1000, 
-        logger_kwargs=dict(), save_freq=1):
+        logger_kwargs=dict(), save_freq=1, test_trajs_name=None, train_trajs_name=None):
     """
     Soft Actor-Critic (SAC)
     Args:
@@ -117,7 +121,7 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         save_freq (int): How often (in terms of gap between epochs) to save
             the current policy and value function.
     """
-    print("start training gsac")
+    
     logger = EpochLogger(**logger_kwargs)
     logger.save_config(locals())
 
@@ -125,8 +129,21 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     np.random.seed(seed)
 
     env, test_env = env_fn(), env_fn()
+    print("start training gsac with rns = ", env.get_reset_noise_scale())
     obs_dim = env.observation_space.shape
     act_dim = env.action_space.shape[0]
+    
+    test_trajs = None
+    if test_trajs_name != None:        
+        with open(test_trajs_name, 'rb') as f:
+            test_trajs = pickle.load(f)
+        print(test_trajs_name, " has total ", len(test_trajs), " trajs")
+    train_trajs = None
+    if train_trajs_name != None:        
+        with open(train_trajs_name, 'rb') as f:
+            train_trajs = pickle.load(f)
+        print(train_trajs_name, " has total ", len(train_trajs), " trajs")
+
 
     # Action limit for clamping: critically, assumes all dimensions share the same bound!
     act_limit = env.action_space.high[0]
@@ -240,7 +257,62 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     def get_action(o, deterministic=False):
         return ac.act(torch.as_tensor(o, dtype=torch.float32), 
                       deterministic)
+    
+    def get_random_init_state(trajs):
+        tmp = trajs[random.randint(0, len(trajs)-1)]
+        return tmp[0], tmp[1] 
+    
+    def get_q(o, a):
+        o = torch.as_tensor(o, dtype=torch.float32)
+        a = torch.as_tensor(a, dtype=torch.float32)
+        q1 = ac.q1(o, a)
+        q2 = ac.q2(o, a)
+        return torch.min(q1, q2).detach().numpy()
+        
+    def restore_state(env, old_state):
+        env.reset()
+        env.sim.set_state(old_state)
+        env.sim.forward()
+        return env.get_obs()
+    
+    def get_worst_init_state(env, trajs):
+        worst_ii, worst_old_state = get_random_init_state(trajs)
+        o = restore_state(env, worst_old_state)
+        a = ac.act(torch.as_tensor(o, dtype=torch.float32), True)
+        worst_v = get_q(o,a)
+        
+        for i in range(1, 5):
+            ii, old_state = get_random_init_state(trajs)
+            o = restore_state(env, old_state)
+            a = ac.act(torch.as_tensor(o, dtype=torch.float32), True)
+            v = get_q(o, a)
+            if v < worst_v:
+                worst_v = v
+                worst_ii = ii
+                worst_old_state = old_state
+                
+        return worst_ii, worst_old_state
+    
+    
+    
 
+    
+    def run_extra_steps(env, o, ep_len, max_ep_len, step_num):
+        # return 0
+        # print(env.done)
+        total_r = 0
+        l = 0
+        for i in range(step_num):
+            l +=1
+            a = get_action(o, True)
+            o, r, d, _ = env.step(a)
+            total_r += r
+            ep_len += 1
+            if d or (ep_len == max_ep_len):
+                # print(i, d, r, ep_len, max_ep_len)
+                return d, total_r, l
+        return d, total_r, l
+    
     def test_agent():
         for j in range(num_test_episodes):
             o, d, ep_ret, ep_len = test_env.reset(), False, 0, 0
@@ -250,15 +322,27 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 ep_ret += r
                 ep_len += 1
             logger.store(TestEpRet=ep_ret, TestEpLen=ep_len)
+        extra_step_num = 500
+        if test_trajs != None:
+            for j in range(num_test_episodes*2):
+                i, old_state = get_random_init_state(test_trajs)
+                o  = restore_state(test_env, old_state)
+                dd, rr, ll = run_extra_steps(test_env, o, i, 1000, 500)
+                if(rr < extra_step_num):
+                    dd = True
+                logger.store(TestGEpRet=rr, TestGDoneMean = float(dd),  TestGEpLen=float(ll))
+                
+                
 
     # Prepare for interaction with environment
     total_steps = steps_per_epoch * epochs
     start_time = time.time()
     o, ep_ret, ep_len = env.reset(), 0, 0
+    max_step_remain = 1000
 
     # Main loop: collect experience in env and update/log each epoch
     for t in range(total_steps):
-        
+        max_step_remain -= 1
         # Until start_steps have elapsed, randomly sample actions
         # from a uniform distribution for better exploration. Afterwards, 
         # use the learned policy. 
@@ -285,9 +369,18 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         o = o2
 
         # End of trajectory handling
-        if d or (ep_len == max_ep_len):
+        if d or (ep_len == max_ep_len) or (max_step_remain == 0):
             logger.store(EpRet=ep_ret, EpLen=ep_len)
             o, ep_ret, ep_len = env.reset(), 0, 0
+            max_step_remain = 1000
+            if train_trajs != None:
+                if random.random() > 0.42:
+                    # ii, old_state = get_random_init_state(train_trajs)
+                    ii, old_state = get_worst_init_state(env, train_trajs)
+                    o = restore_state(env, old_state)
+                    ep_len = ii
+                    max_step_remain = 1000
+                
 
         # Update handling
         if t >= update_after and t % update_every == 0:
@@ -319,6 +412,9 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             logger.log_tabular('LossPi', average_only=True)
             logger.log_tabular('LossQ', average_only=True)
             logger.log_tabular('Time', time.time()-start_time)
+            logger.log_tabular('TestGEpRet', average_only=True)
+            logger.log_tabular('TestGDoneMean', average_only=True)
+            logger.log_tabular('TestGEpLen', average_only=True)
             logger.dump_tabular()
 
 if __name__ == '__main__':

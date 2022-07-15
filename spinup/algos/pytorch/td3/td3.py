@@ -44,7 +44,7 @@ class ReplayBuffer:
 
 def td3(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0, 
         steps_per_epoch=4000, epochs=100, replay_size=int(1e6), gamma=0.99, 
-        polyak=0.995, pi_lr=1e-3, q_lr=1e-3, batch_size=100, start_steps=10000, 
+        polyak=0.995, pi_lr=3e-4, q_lr=3e-4, batch_size=256, start_steps=10000, 
         update_after=1000, update_every=50, act_noise=0.1, target_noise=0.2, 
         noise_clip=0.5, policy_delay=2, num_test_episodes=10, max_ep_len=1000, 
         logger_kwargs=dict(), save_freq=1):
@@ -265,7 +265,8 @@ def td3(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
     def get_action(o, noise_scale):
         a = ac.act(torch.as_tensor(o, dtype=torch.float32))
-        a += noise_scale * np.random.randn(act_dim)
+        # a += noise_scale * np.random.randn(act_dim)
+        np.random.normal(0, act_limit *  noise_scale, size=act_dim)
         return np.clip(a, -act_limit, act_limit)
 
     def test_agent():

@@ -1,4 +1,5 @@
 from ast import mod
+from telnetlib import DM
 from turtle import mode
 from unicodedata import name
 import gym
@@ -25,6 +26,14 @@ def get_action(o, md, deterministic=True):
     o = torch.as_tensor(o, dtype=torch.float32)
     a = md.act(o)
     return a
+
+def get_q(o, a, md):
+    o = torch.as_tensor(o, dtype=torch.float32)
+    a = torch.as_tensor(a, dtype=torch.float32)
+    q1 = md.q1(o, a)
+    q2 = md.q2(o, a)
+    return torch.min(q1, q2)
+    
 
 def test_model(env, model, max_ep_len=None, num_episodes=20, interval = 1):
     o, r, d, ep_ret, ep_len, n = env.reset(), 0, False, 0, 0, 0
@@ -162,7 +171,33 @@ def test_continus(env, m1, m2, num=1000):
     # r2.sort()
     # print_vpercent(r2)
     return r1, d1, r2, d2
-    
+
+
+def get_all_models(path, env_name, name):
+    env = gym.make(env_name)
+    fpath = osp.join(path, name)
+    models = []
+    file_names = os.listdir(fpath)
+    if len(file_names) == 0:
+        return []
+    if 'ppo' in name:
+        for file_name in file_names:
+            if '.pt' in file_name:
+                fname = osp.join(fpath, file_name)
+                print(fname)
+                env = gym.make(env_name)
+                obs_dim = env.observation_space.shape[0]
+                action_dim = env.action_space.shape[0]
+                model = PPO_Actor(obs_dim, action_dim, (64, 64), nn.Tanh)
+                model.load(fname)
+                models.append(model)
+    else:
+        for file_name in file_names:   
+            fname = osp.join(fpath, file_name ,'pyt_save', 'model.pt')
+            print(fname)
+            model = torch.load(fname)
+            models.append(model)
+    return models
     
 # def test(path, env_name, name):
 #     model1, model2 = get_models(path, env_name, name)
@@ -343,7 +378,6 @@ def test_continue(env_name, models, traj_id, names, num=10):
             r.append(vp)
             d.append(vmean(d1+d2)*100)
             wd.append(vmean(wd1+wd2)*100)
-            print_rd(r1+r2, d1+d2)
     return r, d, wd
     
         
@@ -375,14 +409,59 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--id', type=int, required = True)
 args =  parser.parse_args()
 
+
+def test_continue_problem(path, env_name, name, traj_num=10, extra_step=50):
+    models = get_all_models(path, env_name, name)
+    # good_trajs = []
+    traj_rs = []
+    env = gym.make(env_name)
+    step_nums = [400, 411, 434, 471, 489]
+    dr = []
+    for i in range(len(models)):
+        dr.append([])
+        model = models[i]
+        rs, gts = get_good_trajs(env, model, traj_num)
+        traj_rs.append(vmean(rs))
+        for j in range(len(models)):
+            m =  models[j]
+            dr[i].append([])
+            for t in gts:
+                for step_num in step_nums:
+                    old_state = t[step_num-1]
+                    o = restore_state(env, old_state)
+                    o_copy = deepcopy(o)
+                    dd, rr = run_extra_steps(env, o, step_num, m, 1000, extra_step)
+                    if rr < extra_step:
+                        dd = True
+                    ai = get_action(o, model)
+                    aj = get_action(o, m)
+                    qii = get_q(o_copy, ai, model)
+                    qij = get_q(o_copy, ai, m)
+                    qji = get_q(o_copy, aj, model)
+                    qjj = get_q(o_copy, aj, m)
+                    dr[i][j].append((dd, rr, qii, qij, qji, qjj))
+    
+        
+
+    
+
 if args.id == 0:
     test_full_continue(path, 'Walker2d-v3', ['Walker2d-v3_sac_base', 'Walker2d-v3_td3_base', 'vanilla_ppo_walker', 'atla_ppo_walker'])
-elif  args.id == 1:
+elif args.id == 1:
     test_full_continue(path, 'Ant-v3', ['Ant-v3_sac_base', 'Ant-v3_td3_base', 'vanilla_ppo_ant', 'atla_ppo_ant'])
-elif  args.id == 2:
+elif args.id == 2:
     test_full_continue(path, 'HalfCheetah-v3', ['HalfCheetah-v3_sac_base', 'HalfCheetah-v3_td3_base', 'vanilla_ppo_halfcheetah', 'atla_ppo_halfcheetah'])
-elif  args.id == 3:
+elif args.id == 3:
     test_full_continue(path, 'Hopper-v3', ['Hopper-v3_sac_base', 'Hopper-v3_td3_base', 'vanilla_ppo_hopper', 'atla_ppo_hopper'])
+elif args.id == 4:
+    test_full_continue(path, 'Humanoid-v3', ['Humanoid-v3_sac_base', 'Humanoid-v3_td3_base', 'sgld_ppo_humanoid'])
+elif args.id == 5:
+    test_full_continue(path, 'Walker2d-v3', ['Walker2d-v3_gsac_test2d', 'Walker2d-v3_sac_base', 'Walker2d-v3_td3_base', 'atla_ppo_walker'])
+elif args.id == 6:
+    test_continue_problem(path, 'Walker2d-v3', 'Walker2d-v3_sac_base_train')
+
+
+
 
 # test_diff_algo('/home/lclan/spinningup/data/', 'Walker2d-v3', 'Walker2d-v3_sac_base', 'Walker2d-v3_td3_base')
 # test_diff_algo('/home/lclan/spinningup/data/', 'Ant-v3', 'Ant-v3_sac_base', 'Ant-v3_td3_base')
