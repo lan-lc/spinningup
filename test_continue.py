@@ -403,6 +403,24 @@ def test_full_continue(path, env_name, names, num=200):
     print_2d_cvs(d)
     print_2d_cvs(worst_d)
 
+def test_OnevsAll(path, env_name, name, names, num=100):
+    models2 = []
+    m1, m2 = get_models(path, env_name, name)
+    models2.append([m1, m2])
+    models = []
+    for i in range(len(names)):
+        m1, m2 = get_models(path, env_name, names[i])
+        models.append([m1, m2])
+    names2 = [name]
+    for i in range(len(models)):
+        models2.append(models[i])
+        names2.append(names[i])
+        _,  _,  _ = test_continue(env_name, models2, 0, names2, num)
+        _,  _,  _ = test_continue(env_name, models2, 1, names2, num)
+        models2.pop()
+        names2.pop()
+
+
 path = '/home/lclan/spinningup/data/'
 
 parser = argparse.ArgumentParser()
@@ -440,8 +458,8 @@ def test_continue_problem(path, env_name, name, traj_num=10, extra_step=50):
                     qji = get_q(o_copy, aj, model)
                     qjj = get_q(o_copy, aj, m)
                     dr[i][j].append((dd, rr, qii, qij, qji, qjj))
+    return dr
     
-        
 
     
 
@@ -459,6 +477,17 @@ elif args.id == 5:
     test_full_continue(path, 'Walker2d-v3', ['Walker2d-v3_gsac_test2d', 'Walker2d-v3_sac_base', 'Walker2d-v3_td3_base', 'atla_ppo_walker'])
 elif args.id == 6:
     test_continue_problem(path, 'Walker2d-v3', 'Walker2d-v3_sac_base_train')
+elif args.id == 7:
+    test_OnevsAll(path, 'Walker2d-v3', 'Walker2d-v3_sac_gsac4_c40_th1_s100' , ['Walker2d-v3_sac_base', 'Walker2d-v3_td3_base', 'vanilla_ppo_walker', 'atla_ppo_walker'])
+    test_OnevsAll(path, 'Walker2d-v3', 'Walker2d-v3_sac_gsac_r33_n4_s100_w5' , ['Walker2d-v3_sac_base', 'Walker2d-v3_td3_base', 'vanilla_ppo_walker', 'atla_ppo_walker'])
+elif args.id == 8:
+    test_OnevsAll(path, 'Ant-v3', 'Ant-v3_sac_gsac4_c40_th1_s100' , ['Ant-v3_sac_base', 'Ant-v3_td3_base', 'vanilla_ppo_ant', 'atla_ppo_ant'])
+    test_OnevsAll(path, 'Ant-v3', 'Ant-v3_sac_gsac_r33_n4_s100_w5' , ['Ant-v3_sac_base', 'Ant-v3_td3_base', 'vanilla_ppo_ant', 'atla_ppo_ant'])
+elif args.id == 9:
+    test_OnevsAll(path, 'Humanoid-v3', 'Humanoid-v3_sac_gsac4_c40_th1_s100' , ['Humanoid-v3_sac_base', 'Humanoid-v3_td3_base', 'sgld_ppo_humanoid'])
+    test_OnevsAll(path, 'Humanoid-v3', 'Humanoid-v3_sac_gsac_r33_n4_s100_w5' , ['Humanoid-v3_sac_base', 'Humanoid-v3_td3_base', 'sgld_ppo_humanoid'])
+
+
 
 
 

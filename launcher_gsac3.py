@@ -6,7 +6,7 @@ except:
     pass
 
 from spinup.utils.run_utils import ExperimentGrid
-from spinup import gsac_pytorch
+from spinup import gsac3_pytorch
 import torch
 from multiprocessing import Pool
 
@@ -24,7 +24,7 @@ def expr(args, seed):
     train_trajs_names['Ant-v3'] = './data/Ant-v3_sac_base_train_33_trajs.pkl'
     train_trajs_names['Humanoid-v3'] = './data/Humanoid-v3_sac_base_train_33_trajs.pkl'
 
-    name = args.env + "_sac_gsac_r33_n4_s20_w5_c50"
+    name = args.env + "_sac_gsac3_c40_v3_th9"
     eg = ExperimentGrid(name)
     eg.add('env_name', args.env)
     eg.add('seed', [seed])
@@ -33,8 +33,7 @@ def expr(args, seed):
     eg.add('ac_kwargs:hidden_sizes', [(256, 256)], 'hid')
     eg.add('ac_kwargs:activation', [torch.nn.ReLU], '')
     eg.add('test_trajs_name', test_trajs_names[args.env])
-    eg.add('train_trajs_name', train_trajs_names[args.env])   
-    eg.run(gsac_pytorch, num_cpu=args.cpu)
+    eg.run(gsac3_pytorch, num_cpu=args.cpu)
 
 
 if __name__ == '__main__':

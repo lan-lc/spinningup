@@ -18,7 +18,9 @@ from spinup.algos.pytorch.td3.td3 import td3 as td3_pytorch
 from spinup.algos.pytorch.trpo.trpo import trpo as trpo_pytorch
 from spinup.algos.pytorch.vpg.vpg import vpg as vpg_pytorch
 from spinup.algos.pytorch.gsac.gsac import gsac as gsac_pytorch
-
+from spinup.algos.pytorch.gsac.gsac2 import gsac2 as gsac2_pytorch
+from spinup.algos.pytorch.gsac.gsac3 import gsac3 as gsac3_pytorch
+from spinup.algos.pytorch.gsac.gsac4 import gsac4 as gsac4_pytorch
 # Loggers
 from spinup.utils.logx import Logger, EpochLogger
 

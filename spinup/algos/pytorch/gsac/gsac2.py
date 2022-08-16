@@ -44,13 +44,25 @@ class ReplayBuffer:
                      done=self.done_buf[idxs])
         return {k: torch.as_tensor(v, dtype=torch.float32) for k,v in batch.items()}
 
+class CheckPoint:
+    def __init__(self, state, reward, ep_len, obs, v):
+        self.state = state
+        self.reward = reward
+        self.ep_len = ep_len
+        self.o = obs
+        self.v = v
+    def update_v(self, v):
+        self.v = v
+    def get_score(self):
+        return (self.reward / self.ep_len) * 100  + self.v
+        
 
 
-def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0, 
+def gsac2(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0, 
         steps_per_epoch=4000, epochs=100, replay_size=int(1e6), gamma=0.99, 
         polyak=0.995, lr=1e-3, alpha=0.2, batch_size=100, start_steps=10000, 
         update_after=1000, update_every=50, num_test_episodes=10, max_ep_len=1000, 
-        logger_kwargs=dict(), save_freq=1, test_trajs_name=None, train_trajs_name=None):
+        logger_kwargs=dict(), save_freq=1, test_trajs_name=None):
     """
     Soft Actor-Critic (SAC)
     Args:
@@ -138,13 +150,17 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         with open(test_trajs_name, 'rb') as f:
             test_trajs = pickle.load(f)
         print(test_trajs_name, " has total ", len(test_trajs), " trajs")
-    train_trajs = None
-    if train_trajs_name != None:        
-        with open(train_trajs_name, 'rb') as f:
-            train_trajs = pickle.load(f)
-        print(train_trajs_name, " has total ", len(train_trajs), " trajs")
-
-
+    
+    # trajs[step] = check_points    
+    # check points[i] = (id, state, reward, updated_q)
+    
+    
+    
+    trajs = {}
+    for i in range(1, 10):
+        trajs[i*100] = []
+    print(trajs.keys())
+    
     # Action limit for clamping: critically, assumes all dimensions share the same bound!
     act_limit = env.action_space.high[0]
 
@@ -218,6 +234,27 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     # Set up model saving
     logger.setup_pytorch_saver(ac)
 
+    def restore_state(env, old_state):
+        env.reset()
+        env.sim.set_state(old_state)
+        env.sim.forward()
+        return env.get_obs()
+        
+    def save_state(env):
+        return env.sim.get_state()
+    
+    def get_q(o, a):
+        o = torch.as_tensor(o, dtype=torch.float32)
+        a = torch.as_tensor(a, dtype=torch.float32)
+        with torch.no_grad():
+            q1 = ac.q1(o, a)
+            q2 = ac.q2(o, a)
+            return torch.min(q1, q2).detach().numpy()
+    
+    def get_v(o):
+        a = ac.act(torch.as_tensor(o, dtype=torch.float32), True)
+        return get_q(o, a)
+    
     def update(data):
         # First run one gradient descent step for Q1 and Q2
         q_optimizer.zero_grad()
@@ -253,6 +290,21 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 # params, as opposed to "mul" and "add", which would make new tensors.
                 p_targ.data.mul_(polyak)
                 p_targ.data.add_((1 - polyak) * p.data)
+    
+    def update_trajs_q():
+        traj_num = 0
+        max_score = 0
+        for k in trajs.keys():
+            for j in range(len(trajs[k])):
+                o = trajs[k][j].o
+                trajs[k][j].update_v(get_v(o))
+                traj_num += 1
+                score = trajs[k][j].get_score()
+                if score > max_score:
+                    max_score = score
+                                 
+        logger.store(TrajNum=traj_num)
+        logger.store(MaxScore=max_score)        
 
     def get_action(o, deterministic=False):
         return ac.act(torch.as_tensor(o, dtype=torch.float32), 
@@ -262,42 +314,7 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         tmp = trajs[random.randint(0, len(trajs)-1)]
         return tmp[0], tmp[1] 
     
-    def get_q(o, a):
-        o = torch.as_tensor(o, dtype=torch.float32)
-        a = torch.as_tensor(a, dtype=torch.float32)
-        with torch.no_grad():
-            q1 = ac.q1(o, a)
-            q2 = ac.q2(o, a)
-            return torch.min(q1, q2).detach().numpy()
-        
-    def restore_state(env, old_state):
-        env.reset()
-        env.sim.set_state(old_state)
-        env.sim.forward()
-        return env.get_obs()
-    
-    def get_worst_init_state(env, trajs):
-        worst_ii, worst_old_state = get_random_init_state(trajs)
-        o = restore_state(env, worst_old_state)
-        a = ac.act(torch.as_tensor(o, dtype=torch.float32), True)
-        worst_v = get_q(o,a)
-        
-        for _ in range(1, 10):
-            ii, old_state = get_random_init_state(trajs)
-            o = restore_state(env, old_state)
-            a = ac.act(torch.as_tensor(o, dtype=torch.float32), True)
-            v = get_q(o, a)
-            if v < worst_v:
-                worst_v = v
-                worst_ii = ii
-                worst_old_state = old_state
-        
-        logger.store(WorstV=worst_v)
-        
-        return worst_ii, worst_old_state
-    
-    
-    
+
     def run_extra_steps(env, o, ep_len, max_ep_len, step_num):
         # return 0
         # print(env.done)
@@ -343,7 +360,6 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
     # Main loop: collect experience in env and update/log each epoch
     for t in range(total_steps):
-        max_step_remain -= 1
         # Until start_steps have elapsed, randomly sample actions
         # from a uniform distribution for better exploration. Afterwards, 
         # use the learned policy. 
@@ -370,23 +386,34 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         o = o2
 
         # End of trajectory handling
-        if d or (ep_len == max_ep_len) or (max_step_remain == 0):
-            get_worst_init_state(env, train_trajs)
+        if d or (ep_len == max_ep_len):
             logger.store(EpRet=ep_ret, EpLen=ep_len)
-            continue_step = int(20 + (500-20) * t/(total_steps/2)) 
             o, ep_ret, ep_len = env.reset(), 0, 0
-            max_step_remain = 1000
-            ratio = float(continue_step) / float(continue_step + 1000)
-            if t > total_steps/2:
-                ratio = 1.0
-            logger.store(PureRatio=ratio)
-            if train_trajs:
-                if random.random() > ratio:
-                    # ii, old_state = get_random_init_state(train_trajs)
-                    ii, old_state = get_worst_init_state(env, train_trajs)
-                    o = restore_state(env, old_state)
-                    ep_len = ii
-                    max_step_remain = continue_step
+        elif ep_len in trajs.keys():
+            l = len(trajs[ep_len])
+            c = CheckPoint(save_state(env), ep_ret, ep_len, o, get_v(o))
+            score = c.get_score()
+            can_switch = len(trajs[ep_len]) > 20
+            if score > 200:
+                if l < 40:
+                    trajs[ep_len].append(c)
+                else:
+                    lowest_score_id =  random.randint(0, len(trajs[ep_len])-1)
+                    lowest_score = trajs[ep_len][lowest_score_id].get_score()
+                    for i in range(0, l):
+                        tmp = trajs[ep_len][i].get_score()
+                        if lowest_score > tmp * 1.05:
+                            lowest_score = tmp
+                            lowest_score_id  = i
+                    if score > lowest_score * 1.05:
+                        trajs[ep_len][lowest_score_id] = c
+                    
+                        
+            if can_switch and random.random() > 0.8: # change env to one of the old state
+                tmp = random.choice(trajs[ep_len])
+                s1 = tmp.get_score() 
+                if score < s1 * 1.1:
+                    o = restore_state(env, tmp.state)
                 
 
         # Update handling
@@ -394,6 +421,7 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             for j in range(update_every):
                 batch = replay_buffer.sample_batch(batch_size)
                 update(data=batch)
+            update_trajs_q()
 
         # End of epoch handling
         if (t+1) % steps_per_epoch == 0:
@@ -415,7 +443,6 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             logger.log_tabular('TotalEnvInteracts', t)
             logger.log_tabular('Q1Vals', with_min_and_max=True)
             logger.log_tabular('Q2Vals', with_min_and_max=True)
-            logger.log_tabular('WorstV', average_only=True)
             logger.log_tabular('LogPi', with_min_and_max=True)
             logger.log_tabular('LossPi', average_only=True)
             logger.log_tabular('LossQ', average_only=True)
@@ -423,7 +450,8 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             logger.log_tabular('TestGEpRet', average_only=True)
             logger.log_tabular('TestGDoneMean', average_only=True)
             logger.log_tabular('TestGEpLen', average_only=True)
-            logger.log_tabular('PureRatio', average_only=True)
+            logger.log_tabular('TrajNum', average_only=True)
+            logger.log_tabular('MaxScore', average_only=True)
             logger.dump_tabular()
 
 if __name__ == '__main__':
@@ -443,7 +471,7 @@ if __name__ == '__main__':
 
     torch.set_num_threads(torch.get_num_threads())
 
-    gsac(lambda : gym.make(args.env), actor_critic=core.MLPActorCritic,
+    gsac2(lambda : gym.make(args.env), actor_critic=core.MLPActorCritic,
         ac_kwargs=dict(hidden_sizes=[args.hid]*args.l), 
         gamma=args.gamma, seed=args.seed, epochs=args.epochs,
         logger_kwargs=logger_kwargs)
