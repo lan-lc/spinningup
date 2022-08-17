@@ -256,12 +256,12 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 o, r, d, _ = test_env.step(get_action(o, True))
                 ep_ret += r
                 ep_len += 1
-            avg_test_ret *= 0.98
+            avg_test_ret *= (ratio-1) / ratio
             avg_test_ret += ep_ret
             logger.store(TestEpRet=ep_ret, TestEpLen=ep_len)
         if best_test_avg * 1.01 < avg_test_ret:
             best_test_avg = avg_test_ret
-            print("best model test avg: ", best_test_avg/50)
+            print("best model test avg: ", best_test_avg/ratio)
             logger.save_state({'env': env}, itr=0)
 
     # Prepare for interaction with environment
