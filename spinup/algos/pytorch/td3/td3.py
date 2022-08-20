@@ -269,15 +269,36 @@ def td3(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         np.random.normal(0, act_limit *  noise_scale, size=act_dim)
         return np.clip(a, -act_limit, act_limit)
 
+    # def test_agent():
+    #     for j in range(num_test_episodes):
+    #         o, d, ep_ret, ep_len = test_env.reset(), False, 0, 0
+    #         while not(d or (ep_len == max_ep_len)):
+    #             # Take deterministic actions at test time (noise_scale=0)
+    #             o, r, d, _ = test_env.step(get_action(o, 0))
+    #             ep_ret += r
+    #             ep_len += 1
+    #         logger.store(TestEpRet=ep_ret, TestEpLen=ep_len)
+    avg_test_ret = 0
+    best_test_avg = 0
     def test_agent():
+        nonlocal avg_test_ret
+        nonlocal best_test_avg
+        ratio = 30
         for j in range(num_test_episodes):
             o, d, ep_ret, ep_len = test_env.reset(), False, 0, 0
             while not(d or (ep_len == max_ep_len)):
-                # Take deterministic actions at test time (noise_scale=0)
-                o, r, d, _ = test_env.step(get_action(o, 0))
+                # Take deterministic actions at test time 
+                o, r, d, _ = test_env.step(get_action(o, True))
                 ep_ret += r
                 ep_len += 1
+            avg_test_ret *= (ratio-1) / ratio
+            avg_test_ret += ep_ret
             logger.store(TestEpRet=ep_ret, TestEpLen=ep_len)
+        if best_test_avg * 1.01 < avg_test_ret:
+            best_test_avg = avg_test_ret
+            print("best model test avg: ", best_test_avg/ratio)
+            logger.save_state({'env': env}, itr=0)
+
 
     # Prepare for interaction with environment
     total_steps = steps_per_epoch * epochs
