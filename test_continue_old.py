@@ -364,6 +364,8 @@ elif  args.id == 2:
 elif  args.id == 3:
     test_full_continue(path, 'Hopper-v3', ['Hopper-v3_sac_base', 'Hopper-v3_td3_base', 'vanilla_ppo_hopper', 'atla_ppo_hopper'])
 
+
+
 # test_diff_algo('/home/lclan/spinningup/data/', 'Walker2d-v3', 'Walker2d-v3_sac_base', 'Walker2d-v3_td3_base')
 # test_diff_algo('/home/lclan/spinningup/data/', 'Ant-v3', 'Ant-v3_sac_base', 'Ant-v3_td3_base')
 # test_diff_algo('/home/lclan/spinningup/data/', 'HalfCheetah-v3', 'HalfCheetah-v3_sac_base', 'HalfCheetah-v3_td3_base')

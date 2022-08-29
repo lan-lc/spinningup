@@ -460,7 +460,7 @@ def gsac4(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                         if lowest_score > tmp_score * 1.1:
                             lowest_score = tmp_score
                             lowest_score_id  = i
-                    if score > lowest_score * 1.1:
+                    if score > lowest_score * 1.0:
                         trajs[old_ep_len][lowest_score_id] = c
         elif ep_len in trajs.keys():
             old_state = save_state(env)
