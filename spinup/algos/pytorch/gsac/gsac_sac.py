@@ -50,10 +50,7 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         steps_per_epoch=4000, epochs=100, replay_size=int(1e6), gamma=0.99, 
         polyak=0.995, lr=1e-3, alpha=0.2, batch_size=100, start_steps=10000, 
         update_after=1000, update_every=50, num_test_episodes=10, max_ep_len=1000, 
-        logger_kwargs=dict(), save_freq=1, test_trajs_name=None, train_trajs_name=None,
-        train_trajs_num = -1, train_trajs_top_ratio=0.5, trajs_sample_ratio = 0.5,
-        sample_num = 1, continue_step = 100, sample_rule = 0,
-        ):
+        logger_kwargs=dict(), save_freq=1, test_trajs_name=None, train_trajs_name=None):
     """
     Soft Actor-Critic (SAC)
     Args:
@@ -141,53 +138,17 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         with open(test_trajs_name, 'rb') as f:
             test_trajs = pickle.load(f)
         print(test_trajs_name, " has total ", len(test_trajs), " trajs")
+    train_trajs = None
+    def get_trajs_from_single_agent_trajs():
     
-
-    def get_mean(l):
-        return sum(l)/len(l)
-    
-    def get_trajs_thr(trajs, top_ratio):
-        rets = deepcopy(trajs[2])
-        rets.sort()
-        return rets[int(len(rets) * (1-top_ratio))]
-    
-    def get_trajs_from_single_agent_trajs(single_agent_trajs, train_trajs_top_ratio):
-        thr = get_trajs_thr(single_agent_trajs, train_trajs_top_ratio)
-        print("agent ", single_agent_trajs[1], ' has ', len(single_agent_trajs[4]), 'trajs with avg: ', 
-              get_mean(single_agent_trajs[2]), " thr: ", thr)
-        t = []
-        for i in range(len(single_agent_trajs[4])):
-            if single_agent_trajs[2][i] >= thr:
-                for x in single_agent_trajs[4][i]:
-                    t.append((x[0],x[1],sum(single_agent_trajs[3][i][x[0]:x[0]+continue_step])))
-        return t
-    
-    def get_worst_id(all_trajs):
-        worst_ret = get_mean(all_trajs[0][2])
-        worst_id = 0
-        for i in range(1, len(all_trajs)):
-            tmp = get_mean(all_trajs[i][2])
-            if tmp < worst_ret:
-                worst_id = i
-                worst_ret = tmp
-        print("worst id and return ", worst_id, worst_ret)
-        return worst_id
-    
-    train_trajs = []
     if train_trajs_name != None:        
         with open(train_trajs_name, 'rb') as f:
-            all_train_trajs = pickle.load(f)
-        print(train_trajs_name, " has total ", len(all_train_trajs), " agents")
-        worst_id = get_worst_id(all_train_trajs)
-        del all_train_trajs[worst_id]
-        if train_trajs_num == -1:
-            train_trajs_num = len(all_train_trajs)
-        ids = random.sample(range(len(all_train_trajs)), train_trajs_num)
-        for id in ids:
-            tmp = get_trajs_from_single_agent_trajs(all_train_trajs[id], train_trajs_top_ratio)
-            train_trajs += tmp
-        del all_train_trajs
-    print(len(train_trajs), len(train_trajs[0]))            
+            train_trajs = pickle.load(f)
+        print(train_trajs_name, " has total ", len(train_trajs), " agents")
+        tmp_train_trajs = []
+        for single_agent_trajs in train_trajs:
+            
+         
 
     # Action limit for clamping: critically, assumes all dimensions share the same bound!
     act_limit = env.action_space.high[0]
@@ -306,7 +267,7 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         while True:
             tmp = trajs[random.randint(0, len(trajs)-1)]
             if tmp[0] + extra_step_num < 990:
-                return tmp
+                return tmp[0], tmp[1] 
     
     def get_q(o, a):
         o = torch.as_tensor(o, dtype=torch.float32)
@@ -315,10 +276,6 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             q1 = ac.q1(o, a)
             q2 = ac.q2(o, a)
             return torch.min(q1, q2).detach().numpy()
-    
-    def get_v(o):
-        a = ac.act(torch.as_tensor(o, dtype=torch.float32), True)
-        return get_q(o, a)
         
     def restore_state(env, old_state):
         env.reset()
@@ -326,26 +283,27 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         env.sim.forward()
         return env.get_obs()
     
-    def get_sample_score(env, point, continue_step):
-        o = restore_state(env, point[1])  
-        if sample_rule == 0:
-            return -get_v(o)
-        return point[2]/continue_step*100 - get_v(o)
-            
+    def get_worst_init_state(env, trajs):
+        worst_ii, worst_old_state = get_random_init_state(trajs)
+        o = restore_state(env, worst_old_state)
+        a = ac.act(torch.as_tensor(o, dtype=torch.float32), True)
+        worst_v = get_q(o,a)
+        
+        for _ in range(1, 10):
+            ii, old_state = get_random_init_state(trajs)
+            o = restore_state(env, old_state)
+            a = ac.act(torch.as_tensor(o, dtype=torch.float32), True)
+            v = get_q(o, a)
+            if v < worst_v:
+                worst_v = v
+                worst_ii = ii
+                worst_old_state = old_state
+        
+        logger.store(WorstV=worst_v)
+        
+        return worst_ii, worst_old_state
     
-    def get_init_state_by_rule(env, trajs, continue_step):
-        point = get_random_init_state(trajs, continue_step)
-        best_point = point
-        best_score = get_sample_score(env, point, continue_step)
-        for _ in range(1, sample_num):
-            point = get_random_init_state(trajs, continue_step)
-            score = get_sample_score(env, point, continue_step)
-            if score > best_score:
-                best_score = score
-                best_point = point
-        logger.store(BestSampleScore=best_score)
-        logger.store(OldReturn=best_point[2])
-        return best_point[0], best_point[1]
+    
     
     def run_extra_steps(env, o, ep_len, max_ep_len, step_num):
         # return 0
@@ -354,7 +312,8 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         l = 0
         for i in range(step_num):
             l +=1
-            o, r, d, _ = env.step(get_action(o, True))
+            a = get_action(o, True)
+            o, r, d, _ = env.step(a)
             total_r += r
             ep_len += 1
             if d or (ep_len == max_ep_len):
@@ -419,21 +378,22 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
         # End of trajectory handling
         if d or (ep_len == max_ep_len) or (max_step_remain == 0):
-            get_init_state_by_rule(env, train_trajs, continue_step) # for log
+            # get_worst_init_state(env, train_trajs)
             logger.store(EpRet=ep_ret, EpLen=ep_len)
+            continue_step = int(20 + (500-20) * t/(total_steps/2)) 
             o, ep_ret, ep_len = env.reset(), 0, 0
             max_step_remain = 1000
-            if trajs_sample_ratio < 0.001:
-                ratio = -1
-            else:
-                ratio = 1000. / float(1000. + (1./trajs_sample_ratio-1.)*continue_step)
-            logger.store(PureRatio=ratio)
-            if train_trajs:
-                if random.random() < ratio:
-                    ii, old_state = get_init_state_by_rule(env, train_trajs, continue_step)
-                    o = restore_state(env, old_state)
-                    ep_len = ii
-                    max_step_remain = continue_step
+            # ratio = float(continue_step) / float(continue_step + 1000)
+            # if t > total_steps/2:
+                # ratio = 1.0
+            # logger.store(PureRatio=ratio)
+            # if train_trajs:
+            #     if random.random() > ratio:
+            #         # ii, old_state = get_random_init_state(train_trajs)
+            #         ii, old_state = get_worst_init_state(env, train_trajs)
+            #         o = restore_state(env, old_state)
+            #         ep_len = ii
+            #         max_step_remain = continue_step
                 
 
         # Update handling
@@ -462,8 +422,7 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             logger.log_tabular('TotalEnvInteracts', t)
             logger.log_tabular('Q1Vals', with_min_and_max=True)
             logger.log_tabular('Q2Vals', with_min_and_max=True)
-            logger.log_tabular('BestSampleScore', average_only=True)
-            logger.log_tabular('OldReturn', average_only=True)
+            # logger.log_tabular('WorstV', average_only=True)
             logger.log_tabular('LogPi', with_min_and_max=True)
             logger.log_tabular('LossPi', average_only=True)
             logger.log_tabular('LossQ', average_only=True)
@@ -471,8 +430,7 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             logger.log_tabular('TestGEpRet', average_only=True)
             logger.log_tabular('TestGDoneMean', average_only=True)
             logger.log_tabular('TestGEpLen', average_only=True)
-            logger.log_tabular('PureRatio', average_only=True)
-            
+            # logger.log_tabular('PureRatio', average_only=True)
             logger.dump_tabular()
             print(logger.output_dir)
 

@@ -109,15 +109,18 @@ def gen_good_traj(path, env_name, name, rate, num):
     t = []
     r = []
     for m in models:
-        rr, tt = get_good_trajs(env, m, int(num*4/len(models)), rate)
+        rr, tt = get_good_trajs(env, m, int(num*1.2/len(models)), rate)
         t = t + tt
         r = r + rr
     sorted_ids = np.argsort(r)
     ret = []
     for i in range(1, num+1):
         traj = t[sorted_ids[-i]]
-        # ids = random.sample(range(1, 500), 200)
-        ids = range(1, 500)
+        max_l = 900
+        if len(traj) < max_l:
+            max_l = len(traj)
+        ids = random.sample(range(1, max_l), 200)
+        # ids = range(1, 500)
         for id in ids:
             ret.append((id, traj[id]))
     
@@ -128,18 +131,18 @@ path = '/home/lclan/spinningup/data/'
 parser = argparse.ArgumentParser()
 parser.add_argument('--id', type=int, required = True)
 args =  parser.parse_args()
-num = 5000
-rate = 0.33
+num = 400
+rate = 0.5
 
 if args.id == 0:
-    gen_good_traj(path, 'Walker2d-v3', 'Walker2d-v3_sac_base_train', rate , num)
+    gen_good_traj(path, 'Walker2d-v3', 'Walker2d-v3_sac_base', rate , num)
 elif  args.id == 1:
-    gen_good_traj(path, 'Ant-v3', 'Ant-v3_sac_base_train', rate, num)
+    gen_good_traj(path, 'Ant-v3', 'Ant-v3_sac_base', rate, num)
 elif  args.id == 2:
-    gen_good_traj(path, 'Humanoid-v3', 'Humanoid-v3_sac_base_train', rate, num)
+    gen_good_traj(path, 'Humanoid-v3', 'Humanoid-v3_sac_base', rate, num)
 elif  args.id == 3:
-    gen_good_traj(path, 'Hopper-v3', 'Hopper-v3_sac_base_train', rate, num)
+    gen_good_traj(path, 'Hopper-v3', 'Hopper-v3_sac_base', rate, num)
 elif args.id == 4:
-    gen_good_traj(path, 'HalfCheetah-v3', 'HalfCheetah-v3_sac_base_train', rate, num)
+    gen_good_traj(path, 'HalfCheetah-v3', 'HalfCheetah-v3_sac_base', rate, num)
     
 

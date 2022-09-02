@@ -95,7 +95,8 @@ def get_models(path, name):
     if len(file_names) == 0:
         return []
     for file_name in file_names:   
-        fname = osp.join(fpath, file_name ,'pyt_save', 'model0.pt')
+        # fname = osp.join(fpath, file_name ,'pyt_save', 'model0.pt')
+        fname = osp.join(fpath, file_name ,'pyt_save', 'model.pt')
         print(fname)
         model = torch.load(fname)
         models.append((name, file_name, model))
@@ -116,8 +117,11 @@ def get_ppo_action(o, md):
 def get_action(o, md, name):
     if 'ppo' in name:
         return get_ppo_action(o, md)
+    if 'train' not in name:
+        o = torch.as_tensor(o, dtype=torch.float32)
+        return md.act(o)
     o = torch.as_tensor(o, dtype=torch.float32)
-    return md.act(o)
+    return md.act(o, deterministic=False)
 
 def test_model(env, model, num_episodes, name):
     max_ep_len = 1000
@@ -152,7 +156,7 @@ def print_rets(rets):
 
 def sample_trajs(trajs):
     sampled_trajs = []
-    sample_num = 100
+    sample_num = 250
     for i in range(len(trajs)):
         tmp = []
         traj = trajs[i]
@@ -189,14 +193,16 @@ def generate_trajs(path, name, num_episodes):
     with open(traj_path , 'wb') as f:
         pickle.dump(all_trajs, f)
 
-num_episodes = 400
-path  = '/home/lclan/spinningup/data/'
+num_episodes = 1000
+# path  = '/home/lclan/spinningup/data/'
+path = '/home/lclan/spinningup/old_data'
 parser = argparse.ArgumentParser()
 parser.add_argument('--name_id', type=int, required = True)
-names = ['Ant-v3_sac_base' , 'Ant-v3_td3_base', 'atla_ppo_ant', 'vanilla_ppo_ant',
-        'Humanoid-v3_sac_base', 'Humanoid-v3_td3_base', 'vanilla_ppo_humanoid',  'sgld_ppo_humanoid',
-        'Walker2d-v3_sac_base', 'Walker2d-v3_td3_base', 'vanilla_ppo_walker', 'atla_ppo_walker',
-        'HalfCheetah-v3_sac_base', 'HalfCheetah-v3_td3_base',  'vanilla_ppo_halfcheetah', 'atla_ppo_halfcheetah',  
-        'Hopper-v3_sac_base', 'Hopper-v3_td3_base', 'vanilla_ppo_hopper',  'atla_ppo_hopper' ]
+# names = ['Ant-v3_sac_base' , 'Ant-v3_td3_base', 'atla_ppo_ant', 'vanilla_ppo_ant',
+#         'Humanoid-v3_sac_base', 'Humanoid-v3_td3_base', 'vanilla_ppo_humanoid',  'sgld_ppo_humanoid',
+#         'Walker2d-v3_sac_base', 'Walker2d-v3_td3_base', 'vanilla_ppo_walker', 'atla_ppo_walker',
+#         'HalfCheetah-v3_sac_base', 'HalfCheetah-v3_td3_base',  'vanilla_ppo_halfcheetah', 'atla_ppo_halfcheetah',  
+#         'Hopper-v3_sac_base', 'Hopper-v3_td3_base', 'vanilla_ppo_hopper',  'atla_ppo_hopper' ]
+names = ['Ant-v3_sac_base_train', 'Humanoid-v3_sac_base_train', 'Walker2d-v3_sac_base_train', 'Hopper-v3_sac_base_train']
 args =  parser.parse_args()
 generate_trajs(path, names[args.name_id], num_episodes)
