@@ -1,5 +1,7 @@
 import os
 
+from traitlets import default
+
 try:
     os.remove(os.path.expanduser("~/miniconda/envs/py37/lib/python3.7/site-packages/mujoco_py/generated/mujocopy-buildlock.lock"))
 except:
@@ -108,6 +110,7 @@ if __name__ == '__main__':
     parser.add_argument('--train_trajs_num', '-ttn', type=int)
     parser.add_argument('--train_trajs_top_ratio', '-tttr', type=float)
     parser.add_argument('--sample_rule', '-sr', )
+    parser.add_argument('--seed', type=int, default=1124)
     
     args = parser.parse_args()
     set_default_and_name(args)
@@ -116,9 +119,9 @@ if __name__ == '__main__':
     
     if args.num_runs > 1:
         # start multiprocessing only if more than one runs
-        x = 1124
+        x = args.seeed
         with Pool(args.num_runs) as p:
             p.starmap(all_expr, [(args, seed) for seed in range(x, x + args.num_runs)])
     else:
-        expr(args, 0)
+        all_expr(args, args.seed)
 

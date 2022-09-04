@@ -173,6 +173,13 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         print("worst id and return ", worst_id, worst_ret)
         return worst_id
     
+    def sample_list(l, ratio):
+        ret = []
+        for x in l:
+            if random.random() < ratio:
+                ret.append(x)
+        return ret
+    
     train_trajs = []
     if train_trajs_name != None:        
         with open(train_trajs_name, 'rb') as f:
@@ -185,8 +192,9 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         ids = random.sample(range(len(all_train_trajs)), train_trajs_num)
         for id in ids:
             tmp = get_trajs_from_single_agent_trajs(all_train_trajs[id], train_trajs_top_ratio)
-            train_trajs += tmp
+            train_trajs += sample_list(tmp, 0.125/train_trajs_top_ratio)
         del all_train_trajs
+        
     print(len(train_trajs), len(train_trajs[0]))            
 
     # Action limit for clamping: critically, assumes all dimensions share the same bound!
