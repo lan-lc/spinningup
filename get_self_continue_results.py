@@ -158,13 +158,19 @@ def get_mean(trajs):
     rets  = deepcopy(trajs[2])
     return sum(rets) / len(rets)
 
-def get_worst_models_names(path, trajs_path, all_trajs_names, num):
+def get_worst_models_names(path, trajs_path, all_trajs_names, num, name_wanted):
     names = []
     for trajs_name in all_trajs_names: # *4
+        if name_wanted not in trajs_name:
+            continue
         trajs_file_name = osp.join(path, trajs_path, trajs_name)
         tmp = []
+        print("loading ", trajs_file_name)
         with open(trajs_file_name, 'rb') as f: 
             all_trajs = pickle.load(f)    
+        if name_wanted != all_trajs[0][0]:
+            del all_trajs
+            continue
         for trajs in all_trajs:
             x = (trajs[1], get_mean(trajs))
             print(x)
@@ -199,21 +205,27 @@ def run_extra_steps_on_trajs(model, trajs, test_num, step_num, thr): # 1 model v
     ret = []
     env_name = get_env_name(trajs[1])
     env = gym.make(env_name)
+    random_action_num = 0
     fail_number = 0
     for _ in range(test_num):
         while True:
             traj_id, midpoint_id = sample_midpoint_from_trajs(trajs)
             ep_len = trajs[-1][traj_id][midpoint_id][0]
-            if (trajs[2][traj_id] >= (thr-0.1)) and (ep_len + step_num < max_len):
+            if (trajs[2][traj_id] >= (thr-0.1)) and (ep_len + step_num + random_action_num < max_len):
                 break
-        restore_state(env, trajs[-1][traj_id][midpoint_id][1]) 
-        ep_len = trajs[-1][traj_id][midpoint_id][0] 
+        o = restore_state(env, trajs[-1][traj_id][midpoint_id][1])
+        old_ret = sum(trajs[-2][traj_id][ep_len : ep_len + step_num]) 
+        ep_len = trajs[-1][traj_id][midpoint_id][0]
+        a = get_action(o, model[2], model[1])
+        for _ in range(random_action_num):
+            _, r, _, _ = env.step(a)
+            ep_len += 1
+            old_ret += r            
         tmp = run_extra_steps(env, ep_len, model[2], model[1], step_num)
         if tmp[0]:
             fail_number += 1
-        old_ret = sum(trajs[-2][traj_id][ep_len : ep_len + step_num])
         ret.append((traj_id, midpoint_id, old_ret, tmp))
-        
+    print(model[1], "fail rate", fail_number/test_num)
     return ret, fail_number/test_num
 
 
@@ -239,132 +251,46 @@ def print_results(results):
         np_arr = np.array(stats[key])
         print(key, np.mean(np_arr), np.std(np_arr))
 
-# def test_all_condinue_old(path, trajs_path, name, test_num, step_num, top_ratio=0.5):
-#     models = get_models(path, name) # same algorithm
-#     for model in models: 
-#         print("model name: ", model[1])
-#     all_trajs_names = get_all_traj_names_with_same_env(path, trajs_path, name)
-#     print("all traj file name: ", all_trajs_names)
-#     worst_model_names = get_worst_models_names(path, trajs_path, all_trajs_names, 2)
-#     print("worst model names: ", worst_model_names)
-#     ret = []
-#     for trajs_name in all_trajs_names: # *4
-#         trajs_file_name = osp.join(path, trajs_path, trajs_name)
-#         print("start runing on: ", trajs_file_name)
-#         with open(trajs_file_name, 'rb') as f: 
-#             all_trajs = pickle.load(f)
-#         for trajs in all_trajs: # * 10
-#             if trajs[1] in worst_model_names:
-#                 continue
-#             thr = get_trajs_thr(trajs, top_ratio)
-#             print("running with ", trajs[0], trajs[1], thr) 
-#             # print(trajs[0], trajs[1], type(trajs[2][0]), len(trajs[3][0]),  len(trajs[4][0])) # float , 1000, 100
-#             for model in models: # * 12 or 11
-#                 if model[1] == trajs[1] or model[1] in worst_model_names:
-#                     continue
-#                 tmp = run_extra_steps_on_trajs(model, trajs, test_num, step_num, thr)
-#                 ret.append((trajs[0], trajs[1], model[0], model[1], tmp))    
-#             del trajs
-#     result_name = name + "_s" + str(step_num) + "_tr" + str(int(top_ratio*100)) + ".pkl"
-#     result_path = osp.join(path, result_name)
-#     with open(result_path , 'wb') as f:
-#         pickle.dump(ret, f)
-#     print_results(ret)
-    
-    
-def get_trajs_name_by_algo(path, trajs_path, algo_name):
-    all_trajs_names = get_all_traj_names_with_same_env(path, trajs_path, algo_name)
-    for trajs_name in all_trajs_names:
-        if algo_name in trajs_name:
-            return trajs_name
-
-def get_all_models_with_same_env(path, algo_name, all_algo_names):
-    model_names = []
-    models = {}
-    env_name = get_env_name(algo_name)
-    for x in all_algo_names:
-        tmp_env_name = get_env_name(x)
-        if tmp_env_name == env_name:
-            model_names.append(x)
-    print(model_names)
-    for x in model_names:
-        models[x] = get_models(path, x) # same algorithm
-    return models
-    
-
-def get_model(models, model_name):
-    print(model_name)
-    for model in models:
-        if model[1] == model_name:
-            return model
-
-def run_extra_steps_on_easy_states(trajs, self_run, model, test_num, step_num):
-    ret = []
-    env_name = get_env_name(trajs[1])
-    env = gym.make(env_name)
-    fail_number = 0
-    for i in range(len(self_run)):
-        if self_run[i][3][0]: #done
-            continue
-        traj_id, midpoint_id = self_run[i][0], self_run[i][1]
-        restore_state(env, trajs[-1][traj_id][midpoint_id][1])
-        ep_len = trajs[-1][traj_id][midpoint_id][0] 
-        tmp = run_extra_steps(env, ep_len, model[2], model[1], step_num)
-        old_ret = sum(trajs[-2][traj_id][ep_len : ep_len + step_num])
-        ret.append((traj_id, midpoint_id, old_ret, tmp))
-        if tmp[0]:
-            fail_number += 1
-        if len(ret) == test_num:
-            print(model[1], "fail rate", fail_number/len(ret))
-            return ret, fail_number/len(ret)
-    print(model[1], "fail rate", fail_number/len(ret))
-    return ret, fail_number/len(ret)
-        
-
-
-def test_all_condinue(path, trajs_path, algo_name, all_algo_names, test_num, step_num, top_ratio=0.5):
-    all_trajs_names = get_all_traj_names_with_same_env(path, trajs_path, algo_name)
+def test_all_condinue(path, trajs_path, name, test_num, step_num, top_ratio=0.5):
+    models = get_models(path, name) # same algorithm
+    for model in models: 
+        print("model name: ", model[1])
+    all_trajs_names = get_all_traj_names_with_same_env(path, trajs_path, name)
     print("all traj file name: ", all_trajs_names)
-    worst_model_names = get_worst_models_names(path, trajs_path, all_trajs_names, 2)
-    # worst_model_names = ['Ant-v3_td3_base_s112', 'Ant-v3_td3_base_s115', 'vanilla_ppo_ant_4.pt', 'vanilla_ppo_ant_6.pt', 'atla_ppo_ant_1.pt', 'atla_ppo_ant_0.pt', 'Ant-v3_sac_base_s1209', 'Ant-v3_sac_base_s1204']
+    worst_model_names = get_worst_models_names(path, trajs_path, all_trajs_names, 2, models[0][0])
     print("worst model names: ", worst_model_names)
-    trajs_name = get_trajs_name_by_algo(path, trajs_path, algo_name)
-    print("all traj file name: ", trajs_name)
-    models = get_all_models_with_same_env(path, algo_name, all_algo_names)
     ret = []
-    trajs_file_name = osp.join(path, trajs_path, trajs_name)
-    print("start loading ", trajs_file_name)
-    with open(trajs_file_name, 'rb') as f: 
-        all_trajs = pickle.load(f)
-    ret = []
-    self_frs = []
-    for trajs in all_trajs:
-        if trajs[1] in worst_model_names:
+    frs = []
+    for trajs_name in all_trajs_names: # *4
+        if models[0][0] not in trajs_name:
             continue
-        thr = get_trajs_thr(trajs, top_ratio)
-        print("running on trajs of ", trajs[0], trajs[1], thr)
-        model = get_model(models[algo_name], trajs[1])
-        self_run, fr = run_extra_steps_on_trajs(model, trajs, test_num * 8 , step_num, thr)
-        print(model[1], "self play fail rate: ", fr)
-        self_frs.append(fr)
-        if fr > 0.2:
+        trajs_file_name = osp.join(path, trajs_path, trajs_name)
+        print("start runing on: ", trajs_file_name)
+        with open(trajs_file_name, 'rb') as f: 
+            all_trajs = pickle.load(f)
+        if all_trajs[0][0] != models[0][0]:
             continue
-        ret.append((trajs[0], trajs[1], model[0], model[1], self_run))
-        for k in models.keys():
-            frs = []
-            for model in models[k]:
-                print("running with model ", model[0], model[1])
-                tmp, fr = run_extra_steps_on_easy_states(trajs, self_run, model, test_num, step_num)
-                ret.append((trajs[0], trajs[1], model[0], model[1], tmp)) 
+        for trajs in all_trajs: # * 10
+            if trajs[1] in worst_model_names:
+                continue
+            thr = get_trajs_thr(trajs, top_ratio)
+            print("running with ", trajs[0], trajs[1], thr) 
+            # print(trajs[0], trajs[1], type(trajs[2][0]), len(trajs[3][0]),  len(trajs[4][0])) # float , 1000, 100
+            for model in models: # * 12 or 11
+                if model[1] != trajs[1] or model[1] in worst_model_names:
+                    continue
+                tmp, fr = run_extra_steps_on_trajs(model, trajs, test_num, step_num, thr)
                 frs.append(fr)
-            print_rets(frs)
-    result_name = algo_name + "_s" + str(step_num) + "_tr" + str(int(top_ratio*100)) + "_tn" + str(test_num) + ".pkl"
+                ret.append((trajs[0], trajs[1], model[0], model[1], tmp))                
+            del trajs
+    result_name = name + "_self_continue_s" + str(step_num) + "_tr" + str(int(top_ratio*100)) + ".pkl"
     result_path = osp.join(path, result_name)
-    print('self rate ')
-    print_rets(self_frs)
     with open(result_path , 'wb') as f:
         pickle.dump(ret, f)
     print_results(ret)
+    print_rets(frs)
+    
+
 
 
 path  = '/home/lclan/spinningup/data/'
@@ -379,4 +305,4 @@ names = ['Ant-v3_sac_base' , 'Ant-v3_td3_base', 'atla_ppo_ant', 'vanilla_ppo_ant
         'HalfCheetah-v3_sac_base', 'HalfCheetah-v3_td3_base',  'vanilla_ppo_halfcheetah', 'atla_ppo_halfcheetah',  
         'Hopper-v3_sac_base', 'Hopper-v3_td3_base', 'vanilla_ppo_hopper',  'atla_ppo_hopper' ]
 args =  parser.parse_args()
-test_all_condinue(path, trajs_path, names[args.name_id], names, test_num, step_num)
+test_all_condinue(path, trajs_path, names[args.name_id], test_num, step_num)

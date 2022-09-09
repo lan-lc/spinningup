@@ -30,7 +30,7 @@ def expr(args, seed):
     eg = ExperimentGrid(name)
     eg.add('env_name', args.env)
     eg.add('seed', [seed])
-    eg.add('epochs', 900)
+    eg.add('epochs', args.epochs)
     eg.add('steps_per_epoch', 4000)
     eg.add('ac_kwargs:hidden_sizes', [(256, 256)], 'hid')
     eg.add('ac_kwargs:activation', [torch.nn.ReLU], '')
@@ -63,6 +63,11 @@ def all_expr(args, seed):
         
 def set_default_and_name(args):
     name = args.name
+    if args.epochs == None:
+        if args.env == 'Hopper-v3':
+            args.epochs = 265
+        else:
+            args.epochs = 800
     if args.trajs_sample_ratio == None:
         args.trajs_sample_ratio = 0.5
     else:
@@ -102,24 +107,26 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--cpu', type=int, default=1)
     parser.add_argument('--num_runs', type=int, default=4)
-    parser.add_argument('--env', type=str, default='three')
+    parser.add_argument('--env', type=str, default='Walker2d-v3')
     parser.add_argument('--name', type=str, default='gsac')
+    parser.add_argument('--seed', type=int, default=1224)
+    parser.add_argument('--epochs', type=int)
+    
+    parser.add_argument('--train_trajs_top_ratio', '-tttr', type=float)
     parser.add_argument('--trajs_sample_ratio', '-tsr', type=float)
     parser.add_argument('--sample_num', '-sn', type=int)
     parser.add_argument('--continue_step', '-cs', type=int)
-    parser.add_argument('--train_trajs_num', '-ttn', type=int)
-    parser.add_argument('--train_trajs_top_ratio', '-tttr', type=float)
     parser.add_argument('--sample_rule', '-sr', )
-    parser.add_argument('--seed', type=int, default=1124)
-    
+    parser.add_argument('--train_trajs_num', '-ttn', type=int)
+
     args = parser.parse_args()
     set_default_and_name(args)
     print(args)
-    print("name ", args)
+    print("name ", args.name)
     
     if args.num_runs > 1:
         # start multiprocessing only if more than one runs
-        x = args.seeed
+        x = args.seed
         with Pool(args.num_runs) as p:
             p.starmap(all_expr, [(args, seed) for seed in range(x, x + args.num_runs)])
     else:

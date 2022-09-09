@@ -1,13 +1,7 @@
-from ast import mod
-from telnetlib import DM
-from turtle import mode
-from unicodedata import name
-from unittest import result
 import gym
 from copy import deepcopy
 import os
 import os.path as osp
-import torch
 from scipy import stats
 from statistics import mean 
 import numpy as np
@@ -34,7 +28,7 @@ def get_env_name(name):
 
 def print_2f(*args):
     __builtins__.print(*("%.2f" % (a if isinstance(a, float) else a)
-                         for a in args))
+                         for a in args), sep='',  end= '')
 
 def print_percent_2f(ls):
     ls = [x*100 for x in ls]
@@ -81,32 +75,66 @@ def get_results_tuple(results):
     for result in results:
         if (result[0], result[2]) not in stats:
             stats[(result[0], result[2])] = []
-        stats[(result[0], result[2])].append(get_fail_rate(result[4]))
+        fr = get_fail_rate(result[4])
+        print(result[0], result[1], result[2], result[3], fr, len(result[4]))
+        if result[1] == result[3]:
+            if (result[0], "self") not in stats:
+                stats[(result[0], "self")] = []
+            stats[(result[0], "self")].append(fr)
+        else:
+            stats[(result[0], result[2])].append(fr)
     ret = []
     for key in stats.keys():
         np_arr = np.array(stats[key])
-        ret.append((key, np.mean(np_arr), np.std(np_arr)))
-        print(key, np.mean(np_arr), np.std(np_arr))
+        ret.append((key, np.mean(np_arr), np.std(np_arr), np.min(np_arr), np.max(np_arr), len(np_arr)))
+        print(key, np.mean(np_arr), np.std(np_arr), np.min(np_arr), np.max(np_arr), len(np_arr) )
     return ret
 
 
 def print_tuples(tuples, algo_names):
     mean = []
     std = []
+    minl = []
+    maxl = []
     for algo_name1 in algo_names: # trajs
         mean.append([])
         std.append([])
+        minl.append([])
+        maxl.append([])
+        for tuple in tuples:
+            if tuple[0][0] == algo_name1 and tuple[0][1] == 'self':
+                mean[-1].append(tuple[1])
+                std[-1].append(tuple[2])
+                minl[-1].append(tuple[3])
+                maxl[-1].append(tuple[4])
+                break
+            
         for algo_name2 in algo_names: # test_agent
             for tuple in tuples:
                 if tuple[0][0] == algo_name1 and tuple[0][1] == algo_name2:
                     mean[-1].append(tuple[1])
                     std[-1].append(tuple[2])
+                    minl[-1].append(tuple[3])
+                    maxl[-1].append(tuple[4])
                     break
     
-    for x in mean:
-        print_percent_2f(x)
-    for y in std:
-        print_percent_2f(y)                    
+    for i in range(len(mean)):
+        for j in range(len(mean[i])):
+            print_2f(mean[i][j]* 100)
+            print(" $\pm$ ", sep='', end='')
+            print_2f(std[i][j]* 100)
+            print(" & ", sep='', end='')
+        print('')
+    
+    
+    # for x in mean:
+    #     print_percent_2f(x)
+    # for x in std:
+    #     print_percent_2f(x)   
+    # for x in minl:
+    #     print_percent_2f(x)  
+    # for x in maxl:
+    #     print_percent_2f(x)                   
 
 
 def print_continue_results(path, env_name, algo_names):
@@ -115,11 +143,13 @@ def print_continue_results(path, env_name, algo_names):
     for result in results:
         tmp = get_results_tuple(result)
         tuples += tmp
-    print(tuples)
+    print('tuple:', tuples)
+    
     print_tuples(tuples, algo_names)
     
 
-path  = '/home/lclan/spinningup/data/trajs/test_continue/'
+# path  = '/home/lclan/spinningup/data/trajs/test_continue/'
+path = '/home/lclan/spinningup/data/tmp/'
 algo_names = {}
 algo_names['Humanoid-v3'] = ['Humanoid-v3_sac_base', 'Humanoid-v3_td3_base', 'vanilla_ppo_humanoid',  'sgld_ppo_humanoid']
 algo_names['Ant-v3'] = ['Ant-v3_sac_base' , 'Ant-v3_td3_base', 'vanilla_ppo_ant', 'atla_ppo_ant']

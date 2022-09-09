@@ -10,10 +10,10 @@ python ./get_continue_results.py --name_id 8 &
 python ./get_continue_results.py --name_id 9 &
 python ./get_continue_results.py --name_id 10 &
 python ./get_continue_results.py --name_id 11 &
-python ./get_continue_results.py --name_id 12 &
-python ./get_continue_results.py --name_id 13 &
-python ./get_continue_results.py --name_id 14 &
-python ./get_continue_results.py --name_id 15 &
+# python ./get_continue_results.py --name_id 12 &
+# python ./get_continue_results.py --name_id 13 &
+# python ./get_continue_results.py --name_id 14 &
+# python ./get_continue_results.py --name_id 15 &
 python ./get_continue_results.py --name_id 16 &
 python ./get_continue_results.py --name_id 17 &
 python ./get_continue_results.py --name_id 18 &

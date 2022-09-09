@@ -45,26 +45,20 @@ class ReplayBuffer:
         return {k: torch.as_tensor(v, dtype=torch.float32) for k,v in batch.items()}
 
 class CheckPoint:
-    def __init__(self, state, future_ret, ep_len, obs, epoch, v, old_ret, future_steps_num):
+    def __init__(self, state, reward, ep_len, obs, v):
         self.state = state
-        self.future_ret = future_ret
-        self.future_steps_num = future_steps_num
+        self.reward = reward
         self.ep_len = ep_len
         self.o = obs
-        self.epoch = epoch
         self.v = v
-        self.old_ret = old_ret
-    
+    def update_v(self, v):
+        self.v = v
+    def get_score(self):
+        return (self.reward / self.ep_len) * 100  + self.v
         
-    def get_save_score(self):
-        return self.future_ret  # + ((self.old_ret / self.ep_len)* self.future_steps_num)
-    
-    def get_select_score(self):
-        return self.future_ret  * 100.0 / self.future_steps_num  - 2 * self.v
-        # return - self.v
-    
 
-def gsac4(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0, 
+
+def gsac2(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0, 
         steps_per_epoch=4000, epochs=100, replay_size=int(1e6), gamma=0.99, 
         polyak=0.995, lr=1e-3, alpha=0.2, batch_size=100, start_steps=10000, 
         update_after=1000, update_every=50, num_test_episodes=10, max_ep_len=1000, 
@@ -161,10 +155,10 @@ def gsac4(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     # check points[i] = (id, state, reward, updated_q)
     
     
-    ss = 50
+    
     trajs = {}
-    for i in range(1, int(1000/ss)):
-        trajs[i*ss-1] = []
+    for i in range(1, 10):
+        trajs[i*100] = []
     print(trajs.keys())
     
     # Action limit for clamping: critically, assumes all dimensions share the same bound!
@@ -299,26 +293,18 @@ def gsac4(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     
     def update_trajs_q():
         traj_num = 0
-        avg_max_score = 0
-        avg_epoch = 0
-        avg_v = 0
+        max_score = 0
         for k in trajs.keys():
             for j in range(len(trajs[k])):
+                o = trajs[k][j].o
+                trajs[k][j].update_v(get_v(o))
                 traj_num += 1
-                avg_max_score += trajs[k][j].future_ret
-                avg_epoch += trajs[k][j].epoch
-                trajs[k][j].v = get_v(trajs[k][j].o)
-                avg_v += trajs[k][j].v
+                score = trajs[k][j].get_score()
+                if score > max_score:
+                    max_score = score
                                  
         logger.store(TrajNum=traj_num)
-        if traj_num == 0:
-            logger.store(MaxScore=0)
-            logger.store(TrajEpoch=0)
-            logger.store(TrajV=0)
-        else:
-            logger.store(MaxScore=avg_max_score/traj_num)
-            logger.store(TrajEpoch=avg_epoch/traj_num)   
-            logger.store(TrajV=avg_v/traj_num)     
+        logger.store(MaxScore=max_score)        
 
     def get_action(o, deterministic=False):
         return ac.act(torch.as_tensor(o, dtype=torch.float32), 
@@ -345,7 +331,6 @@ def gsac4(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 return d, total_r, l
         return d, total_r, l
     
-    
     def test_agent():
         for j in range(num_test_episodes):
             o, d, ep_ret, ep_len = test_env.reset(), False, 0, 0
@@ -371,17 +356,10 @@ def gsac4(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     total_steps = steps_per_epoch * epochs
     start_time = time.time()
     o, ep_ret, ep_len = env.reset(), 0, 0
-    ret_sum = 0
-    extra_steps = 0
-    old_state = save_state(env)
-    old_obs = o
-    old_ep_len = 0
     max_step_remain = 1000
-    old_id = -1
-    
+
     # Main loop: collect experience in env and update/log each epoch
     for t in range(total_steps):
-        max_step_remain -= 1
         # Until start_steps have elapsed, randomly sample actions
         # from a uniform distribution for better exploration. Afterwards, 
         # use the learned policy. 
@@ -392,9 +370,6 @@ def gsac4(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
         # Step the env
         o2, r, d, _ = env.step(a)
-        ret_sum += r
-        extra_steps += 1
-        
         ep_ret += r
         ep_len += 1
 
@@ -409,66 +384,37 @@ def gsac4(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         # Super critical, easy to overlook step: make sure to update 
         # most recent observation!
         o = o2
-        
+
         # End of trajectory handling
-        
-        if d or (ep_len == max_ep_len) or (max_step_remain == 0):
+        if d or (ep_len == max_ep_len):
             logger.store(EpRet=ep_ret, EpLen=ep_len)
             o, ep_ret, ep_len = env.reset(), 0, 0
-            old_ep_len = 0
-            extra_steps = 0
-            ret_sum = 0
-            old_id = -1
-            max_step_remain = 1000
-            if random.random() > (ss/500.0):
-                key = random.choice(list(trajs.keys()))
-                if len(trajs[key]) > 25:
-                    old_ep_len = ep_len = key
-                    max_step_remain = ss * 2 + 5
-                    ids = random.sample(list(range(len(trajs[key]))), 2)
-                    tmp = trajs[key][ids[0]]
-                    tmp2 = trajs[key][ids[1]]
-                    
-                    if tmp.get_select_score() > tmp2.get_select_score():
-                        o = restore_state(env, tmp.state)
-                        old_state = tmp.state
-                        ep_ret = tmp.old_ret
-                        old_id = ids[0]
-                    else:
-                        o = restore_state(env, tmp2.state)
-                        old_state = tmp2.state
-                        ep_ret = tmp2.old_ret
-                        old_id = ids[1]
-                    old_obs = o
-        elif (extra_steps == ss-2) and (old_ep_len in trajs.keys()):
-            epoch = (t+1) // steps_per_epoch
-            c = CheckPoint(old_state, ret_sum, old_ep_len, old_obs, 
-                           epoch, get_v(old_obs), ep_ret - ret_sum, ss-2)
-            l = len(trajs[old_ep_len])
-            score = c.get_save_score()
-            if old_id >= 0: # update reward
-               if  trajs[old_ep_len][old_id].future_ret < c.future_ret:
-                   trajs[old_ep_len][old_id].future_ret = c.future_ret
-            elif ret_sum > ss*2:
-                if l < 50:
-                    trajs[old_ep_len].append(c)
-                else:
-                    lowest_score_id =  random.randint(0, len(trajs[old_ep_len])-1)
-                    lowest_score = trajs[old_ep_len][lowest_score_id].get_save_score()
-                    for i in range(l):
-                        tmp_score = trajs[old_ep_len][i].get_save_score()
-                        if lowest_score > tmp_score * 1.1:
-                            lowest_score = tmp_score
-                            lowest_score_id  = i
-                    if score > lowest_score * 1.0:
-                        trajs[old_ep_len][lowest_score_id] = c
         elif ep_len in trajs.keys():
-            old_state = save_state(env)
-            old_obs = o
-            old_ep_len = ep_len
-            ret_sum = 0
-            extra_steps = 0
-            old_id = -1
+            l = len(trajs[ep_len])
+            c = CheckPoint(save_state(env), ep_ret, ep_len, o, get_v(o))
+            score = c.get_score()
+            can_switch = len(trajs[ep_len]) > 20
+            if score > 200:
+                if l < 40:
+                    trajs[ep_len].append(c)
+                else:
+                    lowest_score_id =  random.randint(0, len(trajs[ep_len])-1)
+                    lowest_score = trajs[ep_len][lowest_score_id].get_score()
+                    for i in range(0, l):
+                        tmp = trajs[ep_len][i].get_score()
+                        if lowest_score > tmp * 1.05:
+                            lowest_score = tmp
+                            lowest_score_id  = i
+                    if score > lowest_score * 1.05:
+                        trajs[ep_len][lowest_score_id] = c
+                    
+                        
+            if can_switch and random.random() > 0.8: # change env to one of the old state
+                tmp = random.choice(trajs[ep_len])
+                s1 = tmp.get_score() 
+                if score < s1 * 1.1:
+                    o = restore_state(env, tmp.state)
+                
 
         # Update handling
         if t >= update_after and t % update_every == 0:
@@ -488,8 +434,6 @@ def gsac4(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             # Test the performance of the deterministic version of the agent.
             test_agent()
 
-            # Save Checkpoints Info
-            
             # Log info about epoch
             logger.log_tabular('Epoch', epoch)
             logger.log_tabular('EpRet', with_min_and_max=True)
@@ -508,8 +452,6 @@ def gsac4(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             logger.log_tabular('TestGEpLen', average_only=True)
             logger.log_tabular('TrajNum', average_only=True)
             logger.log_tabular('MaxScore', average_only=True)
-            logger.log_tabular('TrajEpoch', average_only=True)
-            logger.log_tabular('TrajV', average_only=True)
             logger.dump_tabular()
 
 if __name__ == '__main__':
@@ -529,7 +471,7 @@ if __name__ == '__main__':
 
     torch.set_num_threads(torch.get_num_threads())
 
-    gsac4(lambda : gym.make(args.env), actor_critic=core.MLPActorCritic,
+    gsac2(lambda : gym.make(args.env), actor_critic=core.MLPActorCritic,
         ac_kwargs=dict(hidden_sizes=[args.hid]*args.l), 
         gamma=args.gamma, seed=args.seed, epochs=args.epochs,
         logger_kwargs=logger_kwargs)

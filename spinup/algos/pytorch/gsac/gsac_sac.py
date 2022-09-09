@@ -138,15 +138,12 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         with open(test_trajs_name, 'rb') as f:
             test_trajs = pickle.load(f)
         print(test_trajs_name, " has total ", len(test_trajs), " trajs")
-    train_trajs = None
-    def get_trajs_from_single_agent_trajs():
+    
     
     if train_trajs_name != None:        
         with open(train_trajs_name, 'rb') as f:
             train_trajs = pickle.load(f)
-        print(train_trajs_name, " has total ", len(train_trajs), " agents")
-        tmp_train_trajs = []
-        for single_agent_trajs in train_trajs:
+        
             
          
 
