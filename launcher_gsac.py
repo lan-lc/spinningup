@@ -112,7 +112,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=1224)
     parser.add_argument('--epochs', type=int)
     
-    parser.add_argument('--train_trajs_top_ratio', '-tttr', type=float)
+    parser.add_argument('--train_trajs_top_ratio', '-tttr', type=float) # tttr
     parser.add_argument('--trajs_sample_ratio', '-tsr', type=float)
     parser.add_argument('--sample_num', '-sn', type=int)
     parser.add_argument('--continue_step', '-cs', type=int)

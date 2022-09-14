@@ -70,8 +70,16 @@ class CheckPoint:
         v = self.get_q(self.o, a, ac)
         if sample_rule == 0:
             return -v
-        elif sample_rule == 1:     
-            return self.future_ret  * 100.0 / self.future_steps_num - v
+        elif sample_rule == 1:
+            x = (self.future_ret  * 100.0 / self.future_steps_num)     
+            return  x - v
+        elif sample_rule == 2:
+            x = x = (self.future_ret  * 100.0 / self.future_steps_num) 
+            return (x-v) / x
+        elif sample_rule == 3:
+            x = (self.future_ret  * 100.0 / self.future_steps_num) 
+            return -v/x
+            
         return 0
 
 def gsac2(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0, 
@@ -80,7 +88,8 @@ def gsac2(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         update_after=1000, update_every=50, num_test_episodes=10, max_ep_len=1000, 
         logger_kwargs=dict(), save_freq=1, test_trajs_name=None, train_trajs_top_ratio=0.5, 
         trajs_sample_ratio = 0.5, sample_num = 1, continue_step = 100, sample_rule = 0, 
-        future_ret_step_num = -1, over_write_ratio = 1.,
+        future_ret_step_num = -1, over_write_ratio = 1., traj_buf_size = 2000, 
+        start_sample_ratio = 0.5,
         ):
     """
     Soft Actor-Critic (SAC)
@@ -399,35 +408,36 @@ def gsac2(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         nonlocal avg_rets
         nonlocal avg_rets_current_id
         rs = [x[2] for x in trajs]
-        crs = [0] * (len(rs)+1)
+        crs = [0] * (len(rs)+1) # accumulate return
         for i in range(len(rs)):
             crs[i+1] = crs[i]+ rs[i]
-        total_ret = sum(rs)
+        total_ret = crs[len(rs)]
         old_ret = 0
         if old_id >= 0:
             old_ret = check_points[old_id].old_ret
-            new_future_ret = sum(rs[:future_ret_step_num])
+            new_future_ret = crs[future_ret_step_num]
             if check_points[old_id].future_ret < new_future_ret:
                 check_points[old_id].future_ret = new_future_ret
         avg_ret = total_ret / len(rs)
         x = deepcopy(avg_rets)
         x.sort()
         thr = x[int(len(x) * (1 - train_trajs_top_ratio) )]
+        logger.store(CPUpdateThr=thr)
         if avg_ret >= thr:
-            usable_num = len(trajs) - future_ret_step_num  - 12
+            usable_num = len(trajs) - future_ret_step_num  - 5
             if usable_num > 0:
-                ids = random.sample(list(range(10, len(trajs) - future_ret_step_num  -1)), 
-                                    int(len(trajs) / future_ret_step_num ))
+                ids = random.sample(list(range(2, len(trajs) - future_ret_step_num - 2)), 
+                                    int(len(trajs) / future_ret_step_num) + 2)
                 for id in ids:
                     future_ret = crs[id+future_ret_step_num +1] - crs[id+1]
                     if future_ret/future_ret_step_num >= thr:
                         # state, future_ret, ep_len, obs, epoch, old_ret, future_steps_num
                         cp = CheckPoint(trajs[id][0], future_ret, trajs[id][3], trajs[id][1], 
                                         epoch, old_ret + crs[id+1], future_ret_step_num )
-                        if len(check_points) < 2000:
+                        if len(check_points) < traj_buf_size:
                             check_points.append(cp)
                         else:
-                            cps_ids = random.sample(list(range(len(check_points))), 20)
+                            cps_ids = random.sample(list(range(len(check_points))), 10)
                             lowest_id = cps_ids[0]
                             lowest_future_ret = check_points[lowest_id].future_ret
                             for cps_id in cps_ids:
@@ -472,7 +482,7 @@ def gsac2(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         # Ignore the "done" signal if it comes from hitting the time
         # horizon (that is, when it's an artificial terminal signal
         # that isn't based on the agent's state)
-        d = False if ep_len==max_ep_len else d
+        d = False if ep_len == max_ep_len else d
 
         # Store experience to replay buffer
         replay_buffer.store(o, a, r, o2, d)
@@ -484,7 +494,7 @@ def gsac2(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         # End of trajectory handling
         if d or (ep_len == max_ep_len) or (max_step_remain == 0):
             if len(check_points) >= 1:
-                sample_checkpoint_id_by_rule(sample_rule)
+                sample_checkpoint_id_by_rule(sample_rule) # for log
             else:
                 logger.store(BestSampleScore=0)
                 logger.store(OldReturn=0)
@@ -502,7 +512,7 @@ def gsac2(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 ratio = 1000. / float(1000. + (1./trajs_sample_ratio-1.)*continue_step)
             
             if random.random() < ratio:
-                if len(check_points) > 500:
+                if len(check_points) > traj_buf_size * start_sample_ratio:
                     max_step_remain = continue_step
                     id, _ = sample_checkpoint_id_by_rule(sample_rule)
                     cp = deepcopy(check_points[id])
@@ -513,8 +523,6 @@ def gsac2(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                     trajs = [(save_state(env), o, 0, ep_len)]
             
             logger.store(PureRatio=ratio)
-            
-                
 
         # Update handling
         if t >= update_after and t % update_every == 0:
@@ -568,6 +576,7 @@ def gsac2(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             logger.log_tabular('CPLen', average_only=True)
             logger.log_tabular('CPEpoch', average_only=True)
             logger.log_tabular('CPFutureRet', average_only=True)
+            logger.log_tabular('CPThr', average_only=True)
             
             
             

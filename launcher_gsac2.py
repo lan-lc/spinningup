@@ -92,6 +92,10 @@ def set_default_and_name(args):
     else:
         name += '_owr' + (str( int(args.over_write_ratio*10) )) 
     
+    if args.start_sample_ratio == None:
+        args.start_sample_ratio = 0.5
+    else:
+        name += "_ssr" + (str(int(args.start_sample_ratio*100)))
     
     args.name = name
     return name
@@ -103,8 +107,8 @@ if __name__ == '__main__':
     parser.add_argument('--cpu', type=int, default=1)
     parser.add_argument('--num_runs', type=int, default=5)
     parser.add_argument('--env', type=str, default='Walker2d-v3')
-    parser.add_argument('--name', type=str, default='gsac2')
-    parser.add_argument('--seed', type=int, default=1224)
+    parser.add_argument('--name', type=str, default='gsac3')
+    parser.add_argument('--seed', type=int, default=1324)
     parser.add_argument('--epochs', type=int, default=900)
     
     parser.add_argument('--train_trajs_top_ratio', '-tttr', type=float)
@@ -113,6 +117,7 @@ if __name__ == '__main__':
     parser.add_argument('--continue_step', '-cs', type=int)
     parser.add_argument('--sample_rule', '-sr', type=int)
     parser.add_argument('--over_write_ratio', '-owr', type=float)
+    parser.add_argument('--start_sample_ratio', '-ssr', typ=float)
 
     
     args = parser.parse_args()
