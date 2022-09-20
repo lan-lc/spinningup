@@ -373,7 +373,7 @@ step_num = 500
 test_num = 200
 parser = argparse.ArgumentParser()
 parser.add_argument('--name_id', type=int, required = True)
-names = ['Ant-v3_sac_base' , 'Ant-v3_td3_base', 'atla_ppo_ant', 'vanilla_ppo_ant',
+names = ['Ant-v3_sac_base' , 'Ant-v3_td3_base', 'vanilla_ppo_ant', 'atla_ppo_ant', 
         'Humanoid-v3_sac_base', 'Humanoid-v3_td3_base', 'vanilla_ppo_humanoid',  'sgld_ppo_humanoid',
         'Walker2d-v3_sac_base', 'Walker2d-v3_td3_base', 'vanilla_ppo_walker', 'atla_ppo_walker',
         'HalfCheetah-v3_sac_base', 'HalfCheetah-v3_td3_base',  'vanilla_ppo_halfcheetah', 'atla_ppo_halfcheetah',  

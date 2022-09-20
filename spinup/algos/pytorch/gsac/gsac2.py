@@ -74,7 +74,7 @@ class CheckPoint:
             x = (self.future_ret  * 100.0 / self.future_steps_num)     
             return  x - v
         elif sample_rule == 2:
-            x = x = (self.future_ret  * 100.0 / self.future_steps_num) 
+            x =(self.future_ret  * 100.0 / self.future_steps_num) 
             return (x-v) / x
         elif sample_rule == 3:
             x = (self.future_ret  * 100.0 / self.future_steps_num) 
@@ -413,7 +413,7 @@ def gsac2(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             crs[i+1] = crs[i]+ rs[i]
         total_ret = crs[len(rs)]
         old_ret = 0
-        if old_id >= 0:
+        if old_id >= 0 and len(trajs) >= future_ret_step_num:
             old_ret = check_points[old_id].old_ret
             new_future_ret = crs[future_ret_step_num]
             if check_points[old_id].future_ret < new_future_ret:
@@ -427,7 +427,7 @@ def gsac2(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             usable_num = len(trajs) - future_ret_step_num  - 5
             if usable_num > 0:
                 ids = random.sample(list(range(2, len(trajs) - future_ret_step_num - 2)), 
-                                    int(len(trajs) / future_ret_step_num) + 2)
+                                    int(len(trajs) / future_ret_step_num))
                 for id in ids:
                     future_ret = crs[id+future_ret_step_num +1] - crs[id+1]
                     if future_ret/future_ret_step_num >= thr:
@@ -576,7 +576,7 @@ def gsac2(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             logger.log_tabular('CPLen', average_only=True)
             logger.log_tabular('CPEpoch', average_only=True)
             logger.log_tabular('CPFutureRet', average_only=True)
-            logger.log_tabular('CPThr', average_only=True)
+            logger.log_tabular('CPUpdateThr', average_only=True)
             
             
             

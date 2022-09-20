@@ -82,3 +82,108 @@ python launcher_gsac.py --env Walker2d-v3 --num_runs 5 -tsr 0.25 && python launc
 python launcher_gsac.py --env Walker2d-v3 --num_runs 5 -tsr 0.75 && python launcher_gsac.py --env Hopper-v3 --num_runs 5 -tsr 0.75 &
 
 
+#tassardar
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 1      
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 1
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 0
+
+python launcher_gsac.py --env Walker2d-v3 --num_runs 5 -sn 1       && python launcher_gsac.py --env Hopper-v3 --num_runs 5 -sn 1       &
+python launcher_gsac.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 1 && python launcher_gsac.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 1 &
+python launcher_gsac.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 0 && python launcher_gsac.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 0 &
+python launcher_gsac.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 1 && python launcher_gsac.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 1 &
+python launcher_gsac.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 0 && python launcher_gsac.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 0 &
+
+# tassardar 
+
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 2 -sr 0 -owr 1.1 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 2 -sr 1 -owr 1.1 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 2 -sr 2 -owr 1.1 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 &
+
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 0 -owr 1.1 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 0 -owr 1.1 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 1 -owr 1.1 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 1 -owr 1.1 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 2 -owr 1.1 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 2 -owr 1.1 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 &
+
+
+# zeratul
+
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 0 -owr 1.1 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 1 -owr 1.1 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 2 -owr 1.1 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 &
+
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 0 -owr 1.1 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 0 -owr 1.1 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 1 -owr 1.1 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 1 -owr 1.1 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 2 -owr 1.1 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 2 -owr 1.1 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 &
+
+
+# tassardar
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.3 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 2 -sn 2 -sr 3 -owr 1.3 &
+
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.3 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.3 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.3 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.3 &
+
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.6 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 2 -sn 2 -sr 3 -owr 1.6 &
+
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.6 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.6 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.6 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.6 &
+
+# zeratul
+
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -tttr 0.75 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 2 -sn 2 -sr 3 -owr 1.1 -tttr 0.75 &
+
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -tttr 0.75 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -tttr 0.75&
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -tttr 0.75 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -tttr 0.75&
+
+
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -tttr 0.75 -ssr 0.75 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 2 -sn 2 -sr 3 -owr 1.1 -tttr 0.75 -ssr 0.75&
+
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -tttr 0.75 -ssr 0.75 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -tttr 0.75 -ssr 0.75 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -tttr 0.75 -ssr 0.75 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -tttr 0.75 -ssr 0.75 &
+
+
+
+# lclan
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.3 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.3 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.3 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.6 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.6 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.6 &
+
+# huan
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.3 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.3 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.3 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.6 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.6 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.6 &
+
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -tttr 0.75 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -tttr 0.75 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -tttr 0.75 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -tttr 0.75&
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -tttr 0.75 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -tttr 0.75&
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -tttr 0.75 -ssr 0.75 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -tttr 0.75 -ssr 0.75 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -tttr 0.75 -ssr 0.75 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -tttr 0.75 -ssr 0.75 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -tttr 0.75 -ssr 0.75 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -tttr 0.75 -ssr 0.75 &
+
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -cs 200 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -cs 200 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -cs 200 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -cs 200 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -cs 200 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -cs 200 &
+
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -cs 50 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -cs 50 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -cs 50 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.1 -cs 50 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -cs 50 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.1 -cs 50 &
+
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.3 -cs 200 &
+python ./launcher_gsac2.py --env Humanoid-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.3 -cs 200 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.3 -cs 200 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 5 -sr 3 -owr 1.3 -cs 200 &
+python ./launcher_gsac2.py --env Walker2d-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.3 -cs 200 && python ./launcher_gsac2.py --env Hopper-v3 --num_runs 5 -sn 2 -sr 3 -owr 1.3 -cs 200 &
+
+
+

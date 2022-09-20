@@ -165,7 +165,7 @@ def print_tuples(tuples, algo_names):
     #     print_percent_2f(x)                   
 
 
-def print_continue_results(path, env_name, algo_names):
+def print_continue_results(path, env_name, algo_names, test_algo_name):
     results = load_all_same_env_results(path, env_name)
     tuples = []
     for result in results:
@@ -188,6 +188,6 @@ env_names =  ['Ant-v3', 'Humanoid-v3', 'Walker2d-v3', 'Hopper-v3', 'HalfCheetah-
 parser = argparse.ArgumentParser()
 parser.add_argument('--id', type=int, required = True)
 args =  parser.parse_args()
-print_continue_results(path, env_names[args.id], algo_names[env_names[args.id]])
+print_continue_results(path, env_names[args.id], algo_names[env_names[args.id]], algo_names[env_names[args.id]][0])
 
 

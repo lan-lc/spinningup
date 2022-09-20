@@ -117,7 +117,7 @@ if __name__ == '__main__':
     parser.add_argument('--continue_step', '-cs', type=int)
     parser.add_argument('--sample_rule', '-sr', type=int)
     parser.add_argument('--over_write_ratio', '-owr', type=float)
-    parser.add_argument('--start_sample_ratio', '-ssr', typ=float)
+    parser.add_argument('--start_sample_ratio', '-ssr', type=float)
 
     
     args = parser.parse_args()
