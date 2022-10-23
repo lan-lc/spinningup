@@ -318,7 +318,16 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 return d, total_r, l
         return d, total_r, l
     
+    avg_test_ret = 0
+    best_test_avg = 0
+    avg_testG_done = 0
+    best_testG_avg = 1.
     def test_agent():
+        nonlocal avg_test_ret
+        nonlocal best_test_avg
+        nonlocal avg_testG_done
+        nonlocal best_testG_avg
+        ratio = 30
         for j in range(num_test_episodes):
             o, d, ep_ret, ep_len = test_env.reset(), False, 0, 0
             while not(d or (ep_len == max_ep_len)):
@@ -326,16 +335,30 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 o, r, d, _ = test_env.step(get_action(o, True))
                 ep_ret += r
                 ep_len += 1
+            avg_test_ret *= (ratio-1) / ratio
+            avg_test_ret += ep_ret
             logger.store(TestEpRet=ep_ret, TestEpLen=ep_len)
+        if best_test_avg * 1.01 < avg_test_ret:
+            best_test_avg = avg_test_ret
+            print("best model test avg: ", best_test_avg/ratio)
+            logger.save_state({'env': env}, itr=0)
+        logger.store(TestEpRet=ep_ret, TestEpLen=ep_len)
         extra_step_num = 500
         if test_trajs != None:
+            ratio *= 2
             for j in range(num_test_episodes*2):
                 i, old_state = get_random_init_state(test_trajs, 500)
                 o  = restore_state(test_env, old_state)
                 dd, rr, ll = run_extra_steps(test_env, o, i, 1000, 500)
                 if(rr < extra_step_num):
                     dd = True
+                avg_testG_done *= (ratio-1) / ratio
+                avg_testG_done += float(dd)
                 logger.store(TestGEpRet=rr, TestGDoneMean = float(dd),  TestGEpLen=float(ll))
+            if best_testG_avg > avg_testG_done * 1.01:
+                best_testG_avg = avg_testG_done
+                print("best model testG avg: ", best_testG_avg/ratio)
+                logger.save_state({'env': env}, itr=1)
                 
                 
 

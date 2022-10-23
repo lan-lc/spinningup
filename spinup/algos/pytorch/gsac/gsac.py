@@ -192,7 +192,7 @@ def gsac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         ids = random.sample(range(len(all_train_trajs)), train_trajs_num)
         for id in ids:
             tmp = get_trajs_from_single_agent_trajs(all_train_trajs[id], train_trajs_top_ratio)
-            tmp_r = 0.25/train_trajs_top_ratio
+            tmp_r = 1.1
             if tmp_r > 1:
                 train_trajs += tmp
             else:
